@@ -1,5 +1,4 @@
 __*__
-.venv
 .idea
-*.html
-data
+.data
+.DS_Store
