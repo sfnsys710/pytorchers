@@ -14,6 +14,8 @@ from torch import nn, optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
+from pytorchers.base import BaseNNRegressor
+
 class NNRegressorEstimator(BaseEstimator, RegressorMixin):
     def __init__(
         self, 
@@ -167,3 +169,83 @@ class NNRegressorEstimator(BaseEstimator, RegressorMixin):
         for parameter, value in parameters.items():
             setattr(self, parameter, value)
         return self
+    
+class NNRegressor(NNRegressorEstimator):
+    def __init__(
+        self, 
+        input_size, 
+        layers=[32, 32, 8], 
+        output_size=1,
+        loss="mse", 
+        optimizer="adam", 
+        lr=0.001, 
+        epochs=100, 
+        batch_size=32, 
+        shuffle=True, 
+        verbose=True, 
+        validation_split=0.2, 
+        random_state=None
+    ):
+        """
+        Initialize the NNRegressor class.
+
+        Parameters
+        ----------
+        input_size : int Number of input features
+        layers : list List of hidden layer sizes
+        output_size : int Number of output features
+        loss : str Loss function to use
+        optimizer : str Optimizer to use
+        lr : float Learning rate
+        epochs : int Number of epochs to train for
+        batch_size : int Batch size
+        shuffle : bool Whether to shuffle the data
+        verbose : bool Whether to print training progress
+        """
+        self.input_size = input_size
+        self.layers = layers
+        self.output_size = output_size
+        self.loss = loss
+        self.optimizer = optimizer
+        self.lr = lr
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.verbose = verbose
+        self.validation_split = validation_split
+        self.random_state = random_state
+
+    def fit(self, X, y):
+        """
+        Fit the model to the data.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)Input data
+        y : array-like of shape (n_samples,) Target values
+
+        Returns
+        -------
+        self : object
+        """
+        self.model = BaseNNRegressor(self.input_size, self.layers, self.output_size)
+        return super().fit(X, y)
+    
+    def get_params(self, deep=True):
+        """
+        Get parameters for this estimator.
+        """
+        return {
+            'input_size': self.input_size,
+            'layers': self.layers,
+            'output_size': self.output_size,
+            'loss': self.loss,
+            'optimizer': self.optimizer,
+            'lr': self.lr,
+            'epochs': self.epochs,
+            'batch_size': self.batch_size,
+            'shuffle': self.shuffle,
+            'verbose': self.verbose,
+            'validation_split': self.validation_split,
+            'random_state': self.random_state
+        }
