@@ -35,7 +35,10 @@ class ForwardTracker:
 
         fig, axs = plt.subplots(1, num_layers, figsize=(5 * (num_layers + 1), 8))
 
-        for i, (name, activation) in enumerate(list(self.activations.items())[:-1]):
+        # Plot all layer activations (including last layer for classification)
+        is_classification = preds.dim() > 1 and preds.shape[1] > 1
+
+        for i, (name, activation) in enumerate(self.activations.items()):
             agg_activation = agg_func(activation, dim=0).detach().numpy()
             axs[i].imshow(agg_activation.reshape(-1, 1), cmap="YlGn", aspect="auto")
             axs[i].set(
@@ -46,18 +49,13 @@ class ForwardTracker:
                 yticklabels=[],
             )
 
-        # Handle both regression and classification
-        y_numpy = y.detach().numpy()
-        if preds.dim() > 1 and preds.shape[1] > 1:
-            # Classification: take argmax to get predicted classes
-            preds_numpy = preds.argmax(dim=1).detach().numpy()
-        else:
-            # Regression: use predictions directly
+        # For regression: show scatter plot of truth vs preds
+        if not is_classification:
+            y_numpy = y.detach().numpy()
             preds_numpy = preds.detach().numpy()
-
-        axs[-1].scatter(y_numpy, preds_numpy, alpha=0.5, color="yellowgreen")
-        axs[-1].plot(y_numpy, y_numpy, "r--")
-        axs[-1].set(title="truth vs preds", xlabel="truth", ylabel="preds")
+            axs[-1].scatter(y_numpy, preds_numpy, alpha=0.5, color="yellowgreen")
+            axs[-1].plot(y_numpy, y_numpy, "r--")
+            axs[-1].set(title="truth vs preds", xlabel="truth", ylabel="preds")
 
         fig.suptitle(fig_title)
         fig.tight_layout()
