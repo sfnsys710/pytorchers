@@ -61,37 +61,16 @@ uv pip install -e .
 from pytorchers.reg import NNRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-import pandas as pd
 
-# Prepare data (currently expects pandas DataFrames/Series for y)
-# X can be numpy array or pandas DataFrame
-# y should be pandas Series
-X_train = ...  # Shape: (n_samples, n_features)
-y_train = ...  # pandas Series with shape (n_samples,)
+# Create and use in sklearn Pipeline
+model = NNRegressor(input_size=13, layers=[64, 32], epochs=100)
+pipe = Pipeline([('scaler', StandardScaler()), ('regressor', model)])
 
-# Create a neural network regressor
-model = NNRegressor(
-    input_size=13,        # Number of input features
-    layers=[64, 32],      # Hidden layer sizes
-    epochs=100,
-    batch_size=32,
-    random_state=42
-)
-
-# Use in sklearn Pipeline
-pipe = Pipeline([
-    ('scaler', StandardScaler()),
-    ('regressor', model)
-])
-
-# Fit and predict
 pipe.fit(X_train, y_train)
 predictions = pipe.predict(X_test)
-
-# Access training history
-print(f"Final training loss: {model.train_losses_[-1]:.4f}")
-print(f"Final validation loss: {model.val_losses_[-1]:.4f}")
 ```
+
+See the notebooks for detailed examples and tutorials.
 
 ## Core Features
 
@@ -106,58 +85,22 @@ The simplest way to use PyTorch neural networks for regression:
 ```python
 from pytorchers.reg import NNRegressor
 
-model = NNRegressor(
-    input_size=10,
-    layers=[64, 32, 16],     # 3 hidden layers
-    output_size=1,
-    epochs=100,
-    batch_size=32,
-    lr=0.001,
-    validation_split=0.2,
-    verbose=True,
-    random_state=42
-)
-
+model = NNRegressor(input_size=10, layers=[64, 32, 16], epochs=100)
 model.fit(X_train, y_train)
 predictions = model.predict(X_test)
 ```
 
 ##### NNRegressorEstimator - Wrapper for Custom Regression Models
 
-For more control, wrap your custom PyTorch models:
+Wrap custom PyTorch models for sklearn compatibility:
 
 ```python
 from pytorchers.reg import NNRegressorEstimator, BaseNNRegressor
 
-# Create custom PyTorch model
-custom_model = BaseNNRegressor(
-    input_size=10,
-    layers=[128, 64, 32],
-    output_size=1
-)
-
-# Wrap for sklearn compatibility
-estimator = NNRegressorEstimator(
-    model=custom_model,
-    epochs=200,
-    batch_size=64,
-    lr=0.001,
-    verbose=True
-)
-
+custom_model = BaseNNRegressor(input_size=10, layers=[128, 64, 32])
+estimator = NNRegressorEstimator(model=custom_model, epochs=200)
 estimator.fit(X_train, y_train)
-predictions = estimator.predict(X_test)
 ```
-
-**Key Parameters:**
-- `model`: PyTorch nn.Module instance
-- `loss`: Loss function ("mse", "mae", "huber") - currently only MSE implemented
-- `optimizer`: Optimizer type ("adam", "sgd", "rmsprop") - currently only Adam implemented
-- `lr`: Learning rate (default: 0.001)
-- `epochs`: Number of training epochs (default: 100)
-- `batch_size`: Batch size for training (default: 64)
-- `validation_split`: Fraction of data for validation (default: 0.1)
-- `random_state`: Seed for reproducibility
 
 #### Classification
 
@@ -167,106 +110,44 @@ PyTorch neural networks for binary and multi-class classification:
 
 ```python
 from pytorchers.clf import NNClassifier
-from sklearn.datasets import load_iris
 
-# Load data
-X, y = load_iris(return_X_y=True)
-
-# Create classifier
-model = NNClassifier(
-    input_size=4,
-    layers=[64, 32],
-    n_classes=3,
-    epochs=100,
-    batch_size=32,
-    lr=0.001,
-    validation_split=0.2,
-    random_state=42
-)
-
-model.fit(X, y)
-predictions = model.predict(X)
-probabilities = model.predict_proba(X)
+model = NNClassifier(input_size=4, layers=[64, 32], n_classes=3, epochs=100)
+model.fit(X_train, y_train)
+predictions = model.predict(X_test)
+probabilities = model.predict_proba(X_test)
 ```
 
 ##### NNClassifierEstimator - Wrapper for Custom Classification Models
 
-Wrap custom PyTorch models for classification:
+Wrap custom PyTorch models for sklearn compatibility:
 
 ```python
 from pytorchers.clf import NNClassifierEstimator, BaseNNClassifier
 
-# Create custom model
-custom_model = BaseNNClassifier(
-    input_size=10,
-    layers=[128, 64, 32],
-    n_classes=2
-)
-
-# Wrap for sklearn compatibility
-estimator = NNClassifierEstimator(
-    model=custom_model,
-    epochs=200,
-    batch_size=64,
-    lr=0.001,
-    class_weight='balanced',  # Handle imbalanced classes
-    verbose=True
-)
-
+custom_model = BaseNNClassifier(input_size=10, layers=[128, 64, 32], n_classes=2)
+estimator = NNClassifierEstimator(model=custom_model, class_weight='balanced')
 estimator.fit(X_train, y_train)
-predictions = estimator.predict(X_test)
 ```
-
-**Key Parameters:**
-- `model`: PyTorch nn.Module instance
-- `loss`: Loss function ("crossentropy")
-- `optimizer`: Optimizer type ("adam")
-- `lr`: Learning rate (default: 0.001)
-- `epochs`: Number of training epochs (default: 100)
-- `batch_size`: Batch size for training (default: 64)
-- `validation_split`: Fraction of data for validation (default: 0.1)
-- `class_weight`: 'balanced' or dict for handling imbalanced classes
-- `random_state`: Seed for reproducibility
 
 ### Model Architecture
 
 #### BaseNNRegressor
 
-Customizable feedforward neural network for regression:
+Customizable feedforward neural network for regression. Automatically creates linear layers with ReLU activations and a final output layer (no activation).
 
 ```python
 from pytorchers.reg import BaseNNRegressor
-
-model = BaseNNRegressor(
-    input_size=13,
-    layers=[64, 32, 8],   # 3 hidden layers with ReLU activations
-    output_size=1         # Single regression output
-)
+model = BaseNNRegressor(input_size=13, layers=[64, 32, 8], output_size=1)
 ```
-
-The model automatically creates:
-- Linear layers with specified sizes
-- ReLU activations between layers
-- Final output layer (no activation)
 
 #### BaseNNClassifier
 
-Customizable feedforward neural network for classification:
+Customizable feedforward neural network for classification. Automatically creates linear layers with ReLU activations and outputs raw logits (no softmax).
 
 ```python
 from pytorchers.clf import BaseNNClassifier
-
-model = BaseNNClassifier(
-    input_size=10,
-    layers=[64, 32, 8],   # 3 hidden layers with ReLU activations
-    n_classes=3           # Number of classes
-)
+model = BaseNNClassifier(input_size=10, layers=[64, 32, 8], n_classes=3)
 ```
-
-The model automatically creates:
-- Linear layers with specified sizes
-- ReLU activations between layers
-- Final output layer with n_classes outputs (logits, no softmax)
 
 ### Model Inspection & Visualization
 
@@ -299,246 +180,58 @@ This visualization approach is particularly valuable for tabular datasets when y
 
 #### ForwardTracker Mixin
 
-Visualize and understand your neural network's internal behavior:
+Add visualization capabilities to any PyTorch model via multiple inheritance:
 
 ```python
-import torch
 import torch.nn as nn
 from pytorchers.viz import ForwardTracker
 
-# Create an inspectable model
-class InspectableRegressor(nn.Module, ForwardTracker):
+class InspectableModel(nn.Module, ForwardTracker):
     def __init__(self, input_size, layers):
         nn.Module.__init__(self)
         ForwardTracker.__init__(self)
-
-        # Define your architecture
-        self.layers = nn.ModuleList()
-        in_size = input_size
-        for hidden_size in layers:
-            self.layers.append(nn.Linear(in_size, hidden_size))
-            in_size = hidden_size
-        self.output = nn.Linear(in_size, 1)
+        # ... define your layers ...
 
     def forward(self, x):
-        for layer in self.layers:
-            x = torch.relu(layer(x))
-        return self.output(x)
+        # ... your forward pass ...
+        return x
 
-# Create and train model
-model = InspectableRegressor(13, [64, 32])
-# ... training code ...
-
-# Visualize neuron activations
-model.plot_activations(
-    X_tensor,
-    y_tensor,
-    agg_func=torch.mean,
-    fig_title="Mean Neuron Activations"
-)
-
-# Compare train vs validation activations
-model.plot_compared_activations(
-    dataset1=(X_train_tensor, y_train_tensor),
-    dataset2=(X_val_tensor, y_val_tensor),
-    agg_func=torch.mean,
-    fig_title1="Training Set",
-    fig_title2="Validation Set"
-)
+# Visualize activations
+model.plot_activations(X_tensor, y_tensor, agg_func=torch.mean)
+model.plot_compared_activations(dataset1=(X_train, y_train), dataset2=(X_val, y_val))
 ```
 
-The visualization shows:
-- Heatmaps of neuron activations across layers
-- Truth vs prediction scatter plots
-- Side-by-side comparisons of different datasets
+Creates heatmaps of neuron activations and truth vs prediction plots. See notebooks for detailed examples.
 
 ## Usage Examples
 
-### Basic Regression
+All models work seamlessly with sklearn's Pipeline, cross-validation, and GridSearchCV:
 
 ```python
-from pytorchers.reg import NNRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-
-# Prepare data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# Scale features
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
-
-# Train model
-model = NNRegressor(
-    input_size=X_train.shape[1],
-    layers=[64, 32],
-    epochs=100,
-    batch_size=32,
-    validation_split=0.2,
-    random_state=42
-)
-
-model.fit(X_train_scaled, y_train)
-predictions = model.predict(X_test_scaled)
-
-# Evaluate
-from sklearn.metrics import mean_squared_error, r2_score
-print(f"MSE: {mean_squared_error(y_test, predictions):.4f}")
-print(f"R2: {r2_score(y_test, predictions):.4f}")
-```
-
-### Cross-Validation
-
-```python
-from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.pipeline import Pipeline
-
-# Create pipeline
-pipe = Pipeline([
-    ('scaler', StandardScaler()),
-    ('regressor', NNRegressor(input_size=13, layers=[64, 32], epochs=50))
-])
-
-# Cross-validation scores
-cv_scores = cross_val_score(
-    pipe, X_train, y_train,
-    cv=5,
-    scoring='neg_mean_squared_error'
-)
-print(f"CV MSE: {-cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})")
-
-# Cross-validation predictions
-cv_predictions = cross_val_predict(pipe, X_train, y_train, cv=5)
-```
-
-### Hyperparameter Tuning with GridSearchCV
-
-```python
-from sklearn.model_selection import GridSearchCV
-
-# Define parameter grid
-param_grid = {
-    'regressor__layers': [[64, 32], [128, 64], [64, 32, 16]],
-    'regressor__lr': [0.001, 0.01],
-    'regressor__batch_size': [32, 64]
-}
-
-# Grid search
-pipe = Pipeline([
-    ('scaler', StandardScaler()),
-    ('regressor', NNRegressor(input_size=13, epochs=50))
-])
-
-grid_search = GridSearchCV(
-    pipe, param_grid,
-    cv=3,
-    scoring='neg_mean_squared_error',
-    verbose=1
-)
-
-grid_search.fit(X_train, y_train)
-print(f"Best params: {grid_search.best_params_}")
-print(f"Best score: {-grid_search.best_score_:.4f}")
-```
-
-### Model Inspection Workflow
-
-```python
-import torch
-import torch.nn as nn
-from pytorchers.viz import ForwardTracker
-
-# Define inspectable model
-class BostonRegressor(nn.Module, ForwardTracker):
-    def __init__(self, input_size, layers):
-        nn.Module.__init__(self)
-        ForwardTracker.__init__(self)
-
-        self.layers = nn.ModuleList()
-        in_size = input_size
-        for hidden_size in layers:
-            self.layers.append(nn.Linear(in_size, hidden_size))
-            in_size = hidden_size
-        self.output = nn.Linear(in_size, 1)
-
-    def forward(self, x):
-        for layer in self.layers:
-            x = torch.relu(layer(x))
-        return self.output(x)
-
-# Train model
-model = BostonRegressor(13, [64, 32])
-# ... training code ...
-
-# Convert data to tensors
-X_train_tensor = torch.tensor(X_train_scaled, dtype=torch.float32)
-y_train_tensor = torch.tensor(y_train, dtype=torch.float32).view(-1, 1)
-X_val_tensor = torch.tensor(X_val_scaled, dtype=torch.float32)
-y_val_tensor = torch.tensor(y_val, dtype=torch.float32).view(-1, 1)
-
-# Visualize mean activations
-model.plot_activations(
-    X_train_tensor,
-    y_train_tensor,
-    agg_func=torch.mean,
-    fig_title="Training Set - Mean Activations"
-)
-
-# Visualize activation variance (neuron sensitivity)
-model.plot_activations(
-    X_train_tensor,
-    y_train_tensor,
-    agg_func=torch.std,
-    fig_title="Training Set - Activation Variance"
-)
-
-# Compare train vs validation
-model.plot_compared_activations(
-    dataset1=(X_train_tensor, y_train_tensor),
-    dataset2=(X_val_tensor, y_val_tensor),
-    agg_func=torch.mean,
-    fig_title1="Training Set",
-    fig_title2="Validation Set"
-)
-```
-
-### Basic Classification
-
-```python
-from pytorchers.clf import NNClassifier
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.model_selection import cross_val_score, GridSearchCV
 
-# Prepare data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Pipeline
+pipe = Pipeline([
+    ('scaler', StandardScaler()),
+    ('regressor', NNRegressor(input_size=13, layers=[64, 32]))
+])
+pipe.fit(X_train, y_train)
 
-# Scale features
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
+# Cross-validation
+cv_scores = cross_val_score(pipe, X_train, y_train, cv=5)
 
-# Train model
-model = NNClassifier(
-    input_size=X_train.shape[1],
-    layers=[64, 32],
-    n_classes=len(np.unique(y)),
-    epochs=100,
-    batch_size=32,
-    validation_split=0.2,
-    class_weight='balanced',  # Handle imbalanced data
-    random_state=42
-)
-
-model.fit(X_train_scaled, y_train)
-predictions = model.predict(X_test_scaled)
-probabilities = model.predict_proba(X_test_scaled)
-
-# Evaluate
-print(f"Accuracy: {accuracy_score(y_test, predictions):.4f}")
-print(classification_report(y_test, predictions))
+# Hyperparameter tuning
+param_grid = {'regressor__layers': [[64, 32], [128, 64]], 'regressor__lr': [0.001, 0.01]}
+grid_search = GridSearchCV(pipe, param_grid, cv=3)
+grid_search.fit(X_train, y_train)
 ```
+
+**For complete examples**, see the notebooks which demonstrate:
+- Regression: Boston Housing dataset with full workflow
+- Classification: Iris dataset with class weighting and probability predictions
+- Visualization: Activation analysis and error debugging
 
 ## API Reference
 
