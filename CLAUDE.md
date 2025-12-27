@@ -124,7 +124,7 @@ For GridSearchCV and Pipeline to work:
 4. `fit()` must return self
 5. `predict()` should use `check_is_fitted()` (currently missing in reg.py)
 
-**Important:** `NNRegressor.fit()` creates the model in fit(), not `__init__()`, so the model can be reconstructed during cross-validation.
+**Important:** `NNRegressorEstimator` expects a model instance to be passed in, allowing the same model to be used across cross-validation folds.
 
 ## Key Gaps and Known Issues
 

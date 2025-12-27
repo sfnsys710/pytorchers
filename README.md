@@ -58,13 +58,16 @@ uv pip install -e .
 ## Quick Start
 
 ```python
-from pytorchers.reg import NNRegressor
+from pytorchers.reg import BaseNNRegressor, NNRegressorEstimator
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-# Create and use in sklearn Pipeline
-model = NNRegressor(input_size=13, layers=[64, 32], epochs=100)
-pipe = Pipeline([('scaler', StandardScaler()), ('regressor', model)])
+# Create model and wrap with sklearn-compatible estimator
+model = BaseNNRegressor(input_size=13, layers=[64, 32])
+estimator = NNRegressorEstimator(model=model, epochs=100)
+
+# Use in sklearn Pipeline
+pipe = Pipeline([('scaler', StandardScaler()), ('regressor', estimator)])
 
 pipe.fit(X_train, y_train)
 predictions = pipe.predict(X_test)
@@ -77,18 +80,6 @@ See the notebooks for detailed examples and tutorials.
 ### Sklearn-Compatible Models
 
 #### Regression
-
-##### NNRegressor - High-Level Regression API
-
-The simplest way to use PyTorch neural networks for regression:
-
-```python
-from pytorchers.reg import NNRegressor
-
-model = NNRegressor(input_size=10, layers=[64, 32, 16], epochs=100)
-model.fit(X_train, y_train)
-predictions = model.predict(X_test)
-```
 
 ##### NNRegressorEstimator - Wrapper for Custom Regression Models
 
@@ -103,19 +94,6 @@ estimator.fit(X_train, y_train)
 ```
 
 #### Classification
-
-##### NNClassifier - High-Level Classification API
-
-PyTorch neural networks for binary and multi-class classification:
-
-```python
-from pytorchers.clf import NNClassifier
-
-model = NNClassifier(input_size=4, layers=[64, 32], n_classes=3, epochs=100)
-model.fit(X_train, y_train)
-predictions = model.predict(X_test)
-probabilities = model.predict_proba(X_test)
-```
 
 ##### NNClassifierEstimator - Wrapper for Custom Classification Models
 
@@ -208,14 +186,19 @@ Creates heatmaps of neuron activations and truth vs prediction plots. See notebo
 All models work seamlessly with sklearn's Pipeline, cross-validation, and GridSearchCV:
 
 ```python
+from pytorchers.reg import BaseNNRegressor, NNRegressorEstimator
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_val_score, GridSearchCV
 
+# Create model and estimator
+model = BaseNNRegressor(input_size=13, layers=[64, 32])
+estimator = NNRegressorEstimator(model=model, epochs=100)
+
 # Pipeline
 pipe = Pipeline([
     ('scaler', StandardScaler()),
-    ('regressor', NNRegressor(input_size=13, layers=[64, 32]))
+    ('regressor', estimator)
 ])
 pipe.fit(X_train, y_train)
 
@@ -223,7 +206,7 @@ pipe.fit(X_train, y_train)
 cv_scores = cross_val_score(pipe, X_train, y_train, cv=5)
 
 # Hyperparameter tuning
-param_grid = {'regressor__layers': [[64, 32], [128, 64]], 'regressor__lr': [0.001, 0.01]}
+param_grid = {'regressor__epochs': [100, 200], 'regressor__lr': [0.001, 0.01]}
 grid_search = GridSearchCV(pipe, param_grid, cv=3)
 grid_search.fit(X_train, y_train)
 ```
@@ -236,36 +219,6 @@ grid_search.fit(X_train, y_train)
 ## API Reference
 
 ### Regression
-
-#### NNRegressor
-
-High-level sklearn-compatible neural network regressor.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `input_size` | int | Required | Number of input features |
-| `layers` | list[int] | [32, 32, 8] | Hidden layer sizes |
-| `output_size` | int | 1 | Number of output values |
-| `loss` | str | "mse" | Loss function (only "mse" currently) |
-| `optimizer` | str | "adam" | Optimizer (only "adam" currently) |
-| `lr` | float | 0.001 | Learning rate |
-| `epochs` | int | 100 | Number of training epochs |
-| `batch_size` | int | 32 | Batch size for training |
-| `shuffle` | bool | True | Shuffle data during training |
-| `verbose` | bool | True | Print training progress |
-| `validation_split` | float | 0.2 | Validation set fraction |
-| `random_state` | int | None | Random seed for reproducibility |
-
-**Attributes:**
-- `train_losses_`: List of training losses per epoch
-- `val_losses_`: List of validation losses per epoch
-- `is_fitted_`: Boolean indicating if model is fitted
-
-**Methods:**
-- `fit(X, y)`: Train the model
-- `predict(X)`: Generate predictions
-- `get_params(deep=True)`: Get parameters for GridSearchCV
-- `set_params(**params)`: Set parameters for GridSearchCV
 
 #### NNRegressorEstimator
 
@@ -295,41 +248,6 @@ Customizable feedforward neural network.
 | `output_size` | int | 1 | Number of outputs |
 
 ### Classification
-
-#### NNClassifier
-
-High-level sklearn-compatible neural network classifier.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `input_size` | int | Required | Number of input features |
-| `layers` | list[int] | [32, 32, 8] | Hidden layer sizes |
-| `n_classes` | int | 2 | Number of classes |
-| `loss` | str | "crossentropy" | Loss function |
-| `optimizer` | str | "adam" | Optimizer |
-| `lr` | float | 0.001 | Learning rate |
-| `epochs` | int | 100 | Number of training epochs |
-| `batch_size` | int | 32 | Batch size for training |
-| `shuffle` | bool | True | Shuffle data during training |
-| `verbose` | bool | True | Print training progress |
-| `validation_split` | float | 0.2 | Validation set fraction |
-| `class_weight` | str/dict | None | 'balanced' or custom weights |
-| `random_state` | int | None | Random seed for reproducibility |
-
-**Attributes:**
-- `train_losses_`: List of training losses per epoch
-- `val_losses_`: List of validation losses per epoch
-- `train_accs_`: List of training accuracies per epoch
-- `val_accs_`: List of validation accuracies per epoch
-- `classes_`: Unique class labels
-- `is_fitted_`: Boolean indicating if model is fitted
-
-**Methods:**
-- `fit(X, y)`: Train the model
-- `predict(X)`: Predict class labels
-- `predict_proba(X)`: Predict class probabilities
-- `get_params(deep=True)`: Get parameters for GridSearchCV
-- `set_params(**params)`: Set parameters for GridSearchCV
 
 #### NNClassifierEstimator
 
