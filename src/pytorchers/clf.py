@@ -6,6 +6,7 @@ from sklearn.preprocessing import LabelEncoder
 from torch import nn, optim
 from torch.utils.data import DataLoader, TensorDataset
 
+
 class BaseNNClassifier(nn.Module):
     def __init__(self, input_size, layers=None, n_classes=2):
         nn.Module.__init__(self)

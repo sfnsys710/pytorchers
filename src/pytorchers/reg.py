@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from torch import nn, optim
 from torch.utils.data import DataLoader, TensorDataset
 
+
 class BaseNNRegressor(nn.Module):
     def __init__(self, input_size, layers=None, output_size=1):
         nn.Module.__init__(self)
@@ -26,6 +27,7 @@ class BaseNNRegressor(nn.Module):
             x = nn.ReLU()(x)
         x = self.final_linear(x)
         return x
+
 
 class NNRegressorEstimator(BaseEstimator, RegressorMixin):
     def __init__(
@@ -189,4 +191,3 @@ class NNRegressorEstimator(BaseEstimator, RegressorMixin):
         for parameter, value in parameters.items():
             setattr(self, parameter, value)
         return self
-
