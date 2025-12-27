@@ -4,7 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-tabularpytorchers is a PyTorch library for tabular datasets with sklearn compatibility. Implements both regression and classification models with full sklearn Pipeline, GridSearchCV, and cross-validation support.
+tabularpytorchers provides **higher-level PyTorch abstractions** for tabular data with **visual inspection of neural nets**. The library solves two core problems:
+
+1. **Abstraction over PyTorch boilerplate** - Eliminates repetitive training loops, model building, and sklearn integration code for tabular use cases
+2. **Visual inspection of neural nets** - Provides activation visualization tools to understand what your model is learning and debug unexpected behavior
+
+**Core capabilities:**
+- Sklearn-compatible wrappers that handle training loops, validation splits, and data conversions automatically
+- Pre-built feedforward architectures with simple configuration (no need to write nn.Module classes repeatedly)
+- ForwardTracker mixin for capturing and visualizing layer activations
+- Full compatibility with sklearn Pipeline, GridSearchCV, and cross-validation
 
 **⚠️ Early Stage:** This package was assembled from various notebook experiments and is in early development. The API is not yet stable - expect rough edges, missing features, and potential breaking changes. The codebase prioritizes experimentation over production readiness.
 
@@ -54,24 +63,39 @@ There is currently no test suite. When adding tests, use pytest and ensure sklea
 
 ## Architecture
 
-### Design Pattern: Wrapper + Mixin
+The library implements two core themes through complementary design patterns:
 
-The library uses two key patterns to achieve sklearn compatibility while maintaining PyTorch flexibility:
+### 1. Abstraction over PyTorch - Wrapper Pattern (reg.py and clf.py)
 
-1. **Wrapper Pattern (reg.py and clf.py)**
-   - `NNRegressorEstimator` wraps any PyTorch nn.Module for regression
-   - `NNClassifierEstimator` wraps any PyTorch nn.Module for classification
-   - Both implement sklearn base classes (`BaseEstimator` with `RegressorMixin` or `ClassifierMixin`)
-   - Handle all numpy ↔ tensor conversions
-   - Manage training loop, validation split, and loss tracking
-   - Classification includes label encoding via `LabelEncoder` for non-numeric targets
+**Goal:** Eliminate boilerplate training loops and sklearn integration code.
 
-2. **Mixin Pattern (viz.py)**
-   - `ForwardTracker` adds visualization via multiple inheritance
-   - Must be combined with nn.Module: `class MyModel(nn.Module, ForwardTracker)`
-   - Uses PyTorch forward hooks to capture layer activations
-   - Only tracks direct child Linear layers (uses `named_children()`, not `named_modules()`)
-   - Automatically detects classification vs regression based on output shape
+**Implementation:**
+- `NNRegressorEstimator` and `NNClassifierEstimator` wrap any PyTorch nn.Module
+- Implement sklearn base classes (`BaseEstimator` with `RegressorMixin`/`ClassifierMixin`)
+- **Automate repetitive tasks:**
+  - Training loop with batching and optimization
+  - Automatic train/validation splits
+  - Numpy ↔ tensor conversions
+  - Loss tracking and progress reporting
+  - Label encoding for classification (via `LabelEncoder`)
+- **Pre-built architectures:**
+  - `BaseNNRegressor` and `BaseNNClassifier` provide configurable feedforward networks
+  - Users configure with simple parameters instead of writing nn.Module classes
+  - Dynamic layer creation using `setattr`/`getattr` (not ModuleList)
+
+### 2. Visual Inspection of Neural Nets - Mixin Pattern (viz.py)
+
+**Goal:** Understand what the model is learning and debug unexpected behavior.
+
+**Implementation:**
+- `ForwardTracker` mixin adds activation visualization via multiple inheritance
+- Usage: `class MyModel(nn.Module, ForwardTracker)`
+- **Inspection capabilities:**
+  - Uses PyTorch forward hooks to capture layer activations during forward passes
+  - Visualize activation distributions across layers
+  - Compare train vs validation activation patterns (detect data leakage, distribution shift)
+  - Analyze activations for error cases to identify problematic features
+- **Current limitation:** Only tracks direct child Linear layers (uses `named_children()`, not `named_modules()`)
 
 ### Critical Implementation Details
 

@@ -1,35 +1,53 @@
 # tabularpytorchers
 
-PyTorch helpers for tabular datasets with sklearn compatibility, model inspection, and visualization tools.
+**Higher-level PyTorch abstractions** for tabular data with **visual inspection of neural nets**.
+
+Stop writing boilerplate training loops. Start understanding what your models are learning.
 
 > **⚠️ Early Stage Development:** This package is in early development and was assembled from various notebook experiments. The API is not yet stable and you should expect breaking changes in future releases. Use in production at your own risk.
 
 ## Why tabularpytorchers?
 
-Deep learning is remarkably potent even for tabular data, but PyTorch's flexibility comes with overhead that's particularly repetitive for tabular use cases:
+PyTorch is powerful for tabular data, but using it means writing the same boilerplate code repeatedly and flying blind when models misbehave. tabularpytorchers solves both problems:
 
-**Integration Challenges:**
-- PyTorch models don't integrate natively with sklearn's ecosystem
-- No built-in support for sklearn `Pipeline`, `GridSearchCV`, or cross-validation
-- Can't leverage sklearn's rich set of preprocessing tools and model selection utilities
+### 1. Abstraction over PyTorch Boilerplate
 
-**Boilerplate Overhead:**
-- Manual training loops for every experiment (data loading, batching, optimization, validation)
-- This becomes repetitive quickly, especially when most tabular architectures are simple feedforward networks
+**The Problem:**
+- Every PyTorch experiment requires manual training loops (batching, optimization, validation splits)
+- Sklearn integration requires custom wrapper classes every time
+- Simple feedforward architectures require writing the same `nn.Module` structure repeatedly
 
-**Architecture Patterns:**
-- Tabular deep learning typically uses straightforward architectures (stacked linear layers with ReLU)
-- Writing the same `nn.Module` structure repeatedly is tedious and error-prone
+**The Solution:**
+- **Pre-built sklearn-compatible estimators** - Drop your PyTorch model into `NNRegressorEstimator` or `NNClassifierEstimator` and get automatic training loops, validation splits, and sklearn compatibility
+- **Configurable architectures** - Use `BaseNNRegressor` or `BaseNNClassifier` instead of writing `nn.Module` classes for standard feedforward networks
+- **Full sklearn integration** - Works seamlessly with `Pipeline`, `GridSearchCV`, and `cross_val_score` out of the box
 
-**tabularpytorchers solves these problems** by providing sklearn-compatible wrappers, automated training loops, and reusable architecture templates - letting you focus on experimentation rather than boilerplate.
+### 2. Visual Inspection of Neural Nets
+
+**The Problem:**
+- When your tabular model makes bad predictions, you're flying blind
+- Hard to tell if you have data leakage, distribution shift, or feature engineering issues
+- No easy way to understand which features or layers are causing problems
+
+**The Solution:**
+- **ForwardTracker mixin** - Capture layer activations with a simple mixin class
+- **Activation visualization** - Heatmaps showing what each layer learns across your dataset
+- **Train/validation comparison** - Detect data leakage and distribution shift by comparing activation patterns
+- **Error analysis** - Identify which layers behave differently for error cases vs correct predictions
 
 ## Key Features
 
-- **Sklearn-compatible PyTorch models** - Drop-in replacement for sklearn estimators with full Pipeline, GridSearchCV, and cross-validation support for both regression and classification
-- **Flexible neural network architectures** - Easily configure feedforward networks for tabular data
-- **Model inspection and visualization** - Visualize neuron activations, compare train/validation patterns, and understand model behavior
-- **Training utilities** - Automatic train/validation splits, progress tracking, loss/accuracy history
-- **Classification support** - Binary and multi-class classification with label encoding, class weighting, and probability predictions
+**Abstraction over PyTorch:**
+- **Sklearn-compatible wrappers** - `NNRegressorEstimator` and `NNClassifierEstimator` handle training loops, validation splits, and data conversions automatically
+- **Pre-built architectures** - `BaseNNRegressor` and `BaseNNClassifier` eliminate repetitive `nn.Module` boilerplate
+- **Full sklearn integration** - Works with `Pipeline`, `GridSearchCV`, and `cross_val_score` out of the box
+- **Smart defaults** - Automatic label encoding, stratified splits for classification, progress tracking
+
+**Visual Inspection of Neural Nets:**
+- **ForwardTracker mixin** - Add activation tracking to any PyTorch model via multiple inheritance
+- **Activation visualization** - Heatmaps showing what each layer learns
+- **Comparative analysis** - Side-by-side train vs validation activation patterns
+- **Debugging tools** - Detect data leakage, distribution shift, and problematic features
 
 **Python:** >=3.9.16
 
@@ -57,20 +75,50 @@ uv pip install -e .
 
 ## Quick Start
 
+### Abstraction: Sklearn-Compatible PyTorch in 3 Lines
+
 ```python
 from tabularpytorchers.reg import BaseNNRegressor, NNRegressorEstimator
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-# Create model and wrap with sklearn-compatible estimator
+# 1. Configure architecture (no need to write nn.Module class)
 model = BaseNNRegressor(input_size=13, layers=[64, 32])
+
+# 2. Wrap with estimator (automatic training loop, validation, sklearn compatibility)
 estimator = NNRegressorEstimator(model=model, epochs=100)
 
-# Use in sklearn Pipeline
+# 3. Use like any sklearn model
 pipe = Pipeline([('scaler', StandardScaler()), ('regressor', estimator)])
-
 pipe.fit(X_train, y_train)
 predictions = pipe.predict(X_test)
+```
+
+### Visual Inspection: Understand What Your Model Learns
+
+```python
+from tabularpytorchers.clf import BaseNNClassifier, NNClassifierEstimator
+from tabularpytorchers.viz import ForwardTracker
+import torch.nn as nn
+
+# Add inspection to any model via mixin
+class InspectableNet(nn.Module, ForwardTracker):
+    def __init__(self, input_size, layers, n_classes):
+        nn.Module.__init__(self)
+        ForwardTracker.__init__(self)
+        # ... define layers ...
+
+    def forward(self, x):
+        # ... forward pass ...
+        return x
+
+# Visualize activations and compare train vs validation
+model = InspectableNet(input_size=10, layers=[64, 32], n_classes=2)
+model.plot_compared_activations(
+    dataset1=(X_train, y_train),
+    dataset2=(X_val, y_val)
+)
+# Instantly see if distributions diverge (data leakage, distribution shift)
 ```
 
 See the notebooks for detailed examples and tutorials.

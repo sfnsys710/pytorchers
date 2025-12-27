@@ -1,7 +1,7 @@
 [project]
 name = "tabularpytorchers"
 version = "0.1.4"
-description = "Add your description here"
+description = "Higher-level PyTorch abstractions for tabular data with visual inspection of neural nets. Eliminates boilerplate training loops and model building while providing sklearn compatibility and activation visualization for debugging."
 readme = "README.md"
 authors = [
     { name = "sfnsys710", email = "soufianenidam7@gmail.com" }
