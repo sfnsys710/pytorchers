@@ -4,14 +4,15 @@ PyTorch helpers for tabular datasets with sklearn compatibility, model inspectio
 
 ## Key Features
 
-- **Sklearn-compatible PyTorch regressors** - Drop-in replacement for sklearn estimators with full Pipeline, GridSearchCV, and cross-validation support
+- **Sklearn-compatible PyTorch models** - Drop-in replacement for sklearn estimators with full Pipeline, GridSearchCV, and cross-validation support for both regression and classification
 - **Flexible neural network architectures** - Easily configure feedforward networks for tabular data
 - **Model inspection and visualization** - Visualize neuron activations, compare train/validation patterns, and understand model behavior
-- **Training utilities** - Automatic train/validation splits, progress tracking, and loss history
+- **Training utilities** - Automatic train/validation splits, progress tracking, loss/accuracy history
+- **Classification support** - Binary and multi-class classification with label encoding, class weighting, and probability predictions
 
 **Python:** >=3.9.16
 
-**Note:** Currently, the `y` (target) parameter in `fit()` expects a pandas Series or DataFrame with a `.values` attribute. Support for plain numpy arrays will be added in a future release.
+**Note:** For regression, the `y` (target) parameter in `fit()` currently expects a pandas Series or DataFrame with a `.values` attribute. Classification models support both pandas and numpy arrays. Full numpy support for regression will be added in a future release.
 
 ## Installation
 
@@ -69,11 +70,13 @@ print(f"Final validation loss: {model.val_losses_[-1]:.4f}")
 
 ## Core Features
 
-### Sklearn-Compatible Regressors
+### Sklearn-Compatible Models
 
-#### NNRegressor - High-Level API
+#### Regression
 
-The simplest way to use PyTorch neural networks with sklearn:
+##### NNRegressor - High-Level Regression API
+
+The simplest way to use PyTorch neural networks for regression:
 
 ```python
 from pytorchers.reg import NNRegressor
@@ -94,7 +97,7 @@ model.fit(X_train, y_train)
 predictions = model.predict(X_test)
 ```
 
-#### NNRegressorEstimator - Wrapper for Custom Models
+##### NNRegressorEstimator - Wrapper for Custom Regression Models
 
 For more control, wrap your custom PyTorch models:
 
@@ -131,6 +134,75 @@ predictions = estimator.predict(X_test)
 - `validation_split`: Fraction of data for validation (default: 0.1)
 - `random_state`: Seed for reproducibility
 
+#### Classification
+
+##### NNClassifier - High-Level Classification API
+
+PyTorch neural networks for binary and multi-class classification:
+
+```python
+from pytorchers.clf import NNClassifier
+from sklearn.datasets import load_iris
+
+# Load data
+X, y = load_iris(return_X_y=True)
+
+# Create classifier
+model = NNClassifier(
+    input_size=4,
+    layers=[64, 32],
+    n_classes=3,
+    epochs=100,
+    batch_size=32,
+    lr=0.001,
+    validation_split=0.2,
+    random_state=42
+)
+
+model.fit(X, y)
+predictions = model.predict(X)
+probabilities = model.predict_proba(X)
+```
+
+##### NNClassifierEstimator - Wrapper for Custom Classification Models
+
+Wrap custom PyTorch models for classification:
+
+```python
+from pytorchers.clf import NNClassifierEstimator, BaseNNClassifier
+
+# Create custom model
+custom_model = BaseNNClassifier(
+    input_size=10,
+    layers=[128, 64, 32],
+    n_classes=2
+)
+
+# Wrap for sklearn compatibility
+estimator = NNClassifierEstimator(
+    model=custom_model,
+    epochs=200,
+    batch_size=64,
+    lr=0.001,
+    class_weight='balanced',  # Handle imbalanced classes
+    verbose=True
+)
+
+estimator.fit(X_train, y_train)
+predictions = estimator.predict(X_test)
+```
+
+**Key Parameters:**
+- `model`: PyTorch nn.Module instance
+- `loss`: Loss function ("crossentropy")
+- `optimizer`: Optimizer type ("adam")
+- `lr`: Learning rate (default: 0.001)
+- `epochs`: Number of training epochs (default: 100)
+- `batch_size`: Batch size for training (default: 64)
+- `validation_split`: Fraction of data for validation (default: 0.1)
+- `class_weight`: 'balanced' or dict for handling imbalanced classes
+- `random_state`: Seed for reproducibility
+
 ### Model Architecture
 
 #### BaseNNRegressor
@@ -151,6 +223,25 @@ The model automatically creates:
 - Linear layers with specified sizes
 - ReLU activations between layers
 - Final output layer (no activation)
+
+#### BaseNNClassifier
+
+Customizable feedforward neural network for classification:
+
+```python
+from pytorchers.clf import BaseNNClassifier
+
+model = BaseNNClassifier(
+    input_size=10,
+    layers=[64, 32, 8],   # 3 hidden layers with ReLU activations
+    n_classes=3           # Number of classes
+)
+```
+
+The model automatically creates:
+- Linear layers with specified sizes
+- ReLU activations between layers
+- Final output layer with n_classes outputs (logits, no softmax)
 
 ### Model Inspection & Visualization
 
@@ -360,9 +451,48 @@ model.plot_compared_activations(
 )
 ```
 
+### Basic Classification
+
+```python
+from pytorchers.clf import NNClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, classification_report
+
+# Prepare data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Scale features
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Train model
+model = NNClassifier(
+    input_size=X_train.shape[1],
+    layers=[64, 32],
+    n_classes=len(np.unique(y)),
+    epochs=100,
+    batch_size=32,
+    validation_split=0.2,
+    class_weight='balanced',  # Handle imbalanced data
+    random_state=42
+)
+
+model.fit(X_train_scaled, y_train)
+predictions = model.predict(X_test_scaled)
+probabilities = model.predict_proba(X_test_scaled)
+
+# Evaluate
+print(f"Accuracy: {accuracy_score(y_test, predictions):.4f}")
+print(classification_report(y_test, predictions))
+```
+
 ## API Reference
 
-### NNRegressor
+### Regression
+
+#### NNRegressor
 
 High-level sklearn-compatible neural network regressor.
 
@@ -392,7 +522,7 @@ High-level sklearn-compatible neural network regressor.
 - `get_params(deep=True)`: Get parameters for GridSearchCV
 - `set_params(**params)`: Set parameters for GridSearchCV
 
-### NNRegressorEstimator
+#### NNRegressorEstimator
 
 Sklearn wrapper for custom PyTorch models.
 
@@ -409,7 +539,7 @@ Sklearn wrapper for custom PyTorch models.
 | `validation_split` | float | 0.1 | Validation fraction |
 | `random_state` | int | None | Random seed |
 
-### BaseNNRegressor
+#### BaseNNRegressor
 
 Customizable feedforward neural network.
 
@@ -419,7 +549,74 @@ Customizable feedforward neural network.
 | `layers` | list[int] | [32, 32, 8] | Hidden layer sizes |
 | `output_size` | int | 1 | Number of outputs |
 
-### ForwardTracker
+### Classification
+
+#### NNClassifier
+
+High-level sklearn-compatible neural network classifier.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `input_size` | int | Required | Number of input features |
+| `layers` | list[int] | [32, 32, 8] | Hidden layer sizes |
+| `n_classes` | int | 2 | Number of classes |
+| `loss` | str | "crossentropy" | Loss function |
+| `optimizer` | str | "adam" | Optimizer |
+| `lr` | float | 0.001 | Learning rate |
+| `epochs` | int | 100 | Number of training epochs |
+| `batch_size` | int | 32 | Batch size for training |
+| `shuffle` | bool | True | Shuffle data during training |
+| `verbose` | bool | True | Print training progress |
+| `validation_split` | float | 0.2 | Validation set fraction |
+| `class_weight` | str/dict | None | 'balanced' or custom weights |
+| `random_state` | int | None | Random seed for reproducibility |
+
+**Attributes:**
+- `train_losses_`: List of training losses per epoch
+- `val_losses_`: List of validation losses per epoch
+- `train_accs_`: List of training accuracies per epoch
+- `val_accs_`: List of validation accuracies per epoch
+- `classes_`: Unique class labels
+- `is_fitted_`: Boolean indicating if model is fitted
+
+**Methods:**
+- `fit(X, y)`: Train the model
+- `predict(X)`: Predict class labels
+- `predict_proba(X)`: Predict class probabilities
+- `get_params(deep=True)`: Get parameters for GridSearchCV
+- `set_params(**params)`: Set parameters for GridSearchCV
+
+#### NNClassifierEstimator
+
+Sklearn wrapper for custom PyTorch classification models.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `model` | nn.Module | Required | PyTorch model instance |
+| `loss` | str | "crossentropy" | Loss function |
+| `optimizer` | str | "adam" | Optimizer type |
+| `lr` | float | 0.001 | Learning rate |
+| `epochs` | int | 100 | Training epochs |
+| `batch_size` | int | 64 | Batch size |
+| `shuffle` | bool | True | Shuffle training data |
+| `verbose` | bool | True | Print progress |
+| `validation_split` | float | 0.1 | Validation fraction |
+| `class_weight` | str/dict | None | Class weights |
+| `random_state` | int | None | Random seed |
+
+#### BaseNNClassifier
+
+Customizable feedforward neural network for classification.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `input_size` | int | Required | Number of input features |
+| `layers` | list[int] | [32, 32, 8] | Hidden layer sizes |
+| `n_classes` | int | 2 | Number of classes |
+
+### Visualization
+
+#### ForwardTracker
 
 Mixin class for model inspection and visualization.
 
@@ -436,22 +633,29 @@ Mixin class for model inspection and visualization.
 
 ## Examples & Notebooks
 
-See `notebooks/boston.ipynb` for a comprehensive demonstration using the Boston Housing dataset, including:
-- Exploratory data analysis
-- Basic regression with sklearn Pipeline integration
-- Cross-validation examples
-- Model inspection and activation visualization
-- Comparing train/validation patterns
+See the example notebooks for comprehensive demonstrations:
+
+- `notebooks/reg_demo.ipynb` - Regression examples including:
+  - Basic regression with sklearn Pipeline integration
+  - Cross-validation and hyperparameter tuning
+  - Model inspection and activation visualization
+  - Comparing train/validation patterns
+
+- `notebooks/clf_demo.ipynb` - Classification examples including:
+  - Binary and multi-class classification
+  - Handling imbalanced datasets with class weights
+  - Probability predictions and decision boundaries
+  - Label encoding for categorical targets
 
 ## Roadmap
 
 ### Upcoming Features
-- **Classification support** - Binary and multi-class classification with sklearn compatibility
-- **Additional loss functions** - MAE, Huber loss implementations
+- **Numpy support for regression** - Fix y.values assumption in reg.py
+- **Additional loss functions** - MAE, Huber loss implementations for regression
 - **Additional optimizers** - SGD, RMSprop support
 - **Enhanced visualization** - More inspection tools and plotting options
 - **Type hints** - Full type annotation coverage
-- **Comprehensive testing** - Unit and integration tests
+- **Comprehensive testing** - Unit and integration tests with sklearn estimator checks
 
 ## Contributing & Development
 
@@ -492,13 +696,17 @@ pre-commit run
 ```
 pytorchers/
 ├── src/pytorchers/      # Main package
-│   ├── base.py          # Neural network architectures
-│   ├── reg.py           # Sklearn-compatible regressors
-│   ├── viz.py           # Visualization tools
+│   ├── __init__.py      # Public API exports
+│   ├── reg.py           # Regression models (BaseNNRegressor, NNRegressorEstimator)
+│   ├── clf.py           # Classification models (BaseNNClassifier, NNClassifierEstimator)
+│   ├── viz.py           # Visualization tools (ForwardTracker)
 │   └── main.py          # CLI entry point
 ├── notebooks/           # Example notebooks
+│   ├── reg_demo.ipynb   # Regression examples
+│   └── clf_demo.ipynb   # Classification examples
 ├── pyproject.toml       # Project configuration
-└── .pre-commit-config.yaml
+├── .pre-commit-config.yaml
+└── README.md
 ```
 
 ## License
