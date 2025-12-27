@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 pytorchers is a PyTorch library for tabular datasets with sklearn compatibility. Implements both regression and classification models with full sklearn Pipeline, GridSearchCV, and cross-validation support.
 
+**⚠️ Early Stage:** This package was assembled from various notebook experiments and is in early development. The API is not yet stable - expect rough edges, missing features, and potential breaking changes. The codebase prioritizes experimentation over production readiness.
+
 **Critical Constraint:** The `fit()` method in reg.py (lines 114, 116) expects `y` to have a `.values` attribute (pandas Series/DataFrame). This will fail with plain numpy arrays and needs fixing. Classification (clf.py) properly handles both pandas and numpy using `hasattr(y, 'values')` checks.
 
 ## Development Commands

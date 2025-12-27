@@ -2,6 +2,27 @@
 
 PyTorch helpers for tabular datasets with sklearn compatibility, model inspection, and visualization tools.
 
+> **⚠️ Early Stage Development:** This package is in early development and was assembled from various notebook experiments. The API is not yet stable and you should expect breaking changes in future releases. Use in production at your own risk.
+
+## Why pytorchers?
+
+Deep learning is remarkably potent even for tabular data, but PyTorch's flexibility comes with overhead that's particularly repetitive for tabular use cases:
+
+**Integration Challenges:**
+- PyTorch models don't integrate natively with sklearn's ecosystem
+- No built-in support for sklearn `Pipeline`, `GridSearchCV`, or cross-validation
+- Can't leverage sklearn's rich set of preprocessing tools and model selection utilities
+
+**Boilerplate Overhead:**
+- Manual training loops for every experiment (data loading, batching, optimization, validation)
+- This becomes repetitive quickly, especially when most tabular architectures are simple feedforward networks
+
+**Architecture Patterns:**
+- Tabular deep learning typically uses straightforward architectures (stacked linear layers with ReLU)
+- Writing the same `nn.Module` structure repeatedly is tedious and error-prone
+
+**pytorchers solves these problems** by providing sklearn-compatible wrappers, automated training loops, and reusable architecture templates - letting you focus on experimentation rather than boilerplate.
+
 ## Key Features
 
 - **Sklearn-compatible PyTorch models** - Drop-in replacement for sklearn estimators with full Pipeline, GridSearchCV, and cross-validation support for both regression and classification
@@ -16,6 +37,8 @@ PyTorch helpers for tabular datasets with sklearn compatibility, model inspectio
 
 ## Installation
 
+> **Note:** This package is in early development. The API may change significantly between versions. Pin your version if using in any serious project.
+
 For local development:
 
 ```bash
@@ -29,6 +52,8 @@ pip install -e .
 # Or using uv (recommended)
 uv pip install -e .
 ```
+
+**Not yet on PyPI** - This package is still experimental and not published to PyPI. Install from source only.
 
 ## Quick Start
 
@@ -244,6 +269,33 @@ The model automatically creates:
 - Final output layer with n_classes outputs (logits, no softmax)
 
 ### Model Inspection & Visualization
+
+#### Why Visualize Hidden Activations?
+
+The `ForwardTracker` mixin is inspired by cutting-edge CNN visualization research, particularly the seminal work "Visualizing and Understanding Convolutional Neural Networks." That research showed how visualizing which parts of an image maximize hidden activations helped researchers understand that:
+
+- **Early CNN layers** learn basic features (edges, corners, colors)
+- **Later layers** learn higher-level semantic features (object parts, faces)
+
+**Adapting this to tabular data:**
+
+This visualization approach is particularly valuable for tabular datasets when you need to debug unexpected model behavior:
+
+1. **Data Leakage Detection:**
+   - Assumption: Similar predicted values should have similar hidden activation distributions
+   - Strategy: Split your target into deciles and visualize train vs. test activations
+   - Red flag: If distributions diverge significantly, you may have leakage or distribution shift
+
+2. **Error Analysis:**
+   - When the model makes large prediction errors (predicting too high or too low)
+   - Compare the hidden activations of the error case against similar target values from training
+   - Identify which layers show divergent activations - this reveals which features caused the model to deviate
+   - Use this to decide whether to engineer features differently, add regularization, or investigate data quality
+
+3. **Model Health Checks:**
+   - Visualize activation patterns between train and validation sets
+   - Ensure the model learns consistent representations across splits
+   - Detect if certain neurons are "dead" (always near zero) or saturated
 
 #### ForwardTracker Mixin
 
@@ -649,15 +701,42 @@ See the example notebooks for comprehensive demonstrations:
 
 ## Roadmap
 
-### Upcoming Features
-- **Numpy support for regression** - Fix y.values assumption in reg.py
-- **Additional loss functions** - MAE, Huber loss implementations for regression
-- **Additional optimizers** - SGD, RMSprop support
-- **Enhanced visualization** - More inspection tools and plotting options
-- **Type hints** - Full type annotation coverage
+### Known Limitations & Upcoming Features
+
+This package was assembled from various notebook experiments and has several rough edges:
+
+**High Priority Fixes:**
+- **Numpy support for regression** - Fix y.values assumption in reg.py (classification already works)
+- **API stabilization** - Settle on consistent parameter names and defaults
 - **Comprehensive testing** - Unit and integration tests with sklearn estimator checks
+- **Better error messages** - More helpful feedback when things go wrong
+
+**Feature Enhancements:**
+- **Additional loss functions** - MAE, Huber loss implementations for regression
+- **Additional optimizers** - SGD, RMSprop, AdamW support
+- **Enhanced visualization** - More inspection tools and plotting options
+- **Early stopping** - Built-in patience-based early stopping
+- **Learning rate scheduling** - Support for LR decay and warmup
+- **Type hints** - Full type annotation coverage
+- **Better documentation** - More examples and tutorials
+
+**Long-term Ideas:**
+- Support for categorical features (embeddings)
+- Attention mechanisms for tabular data
+- Integration with feature importance tools
+- Model interpretation via SHAP/LIME
+
+Contributions welcome! This is an experimental project and we're open to ideas.
 
 ## Contributing & Development
+
+This project is in early stages and was born from consolidating useful patterns across multiple notebook experiments. We welcome contributions, especially:
+
+- Bug reports and fixes
+- Documentation improvements
+- Additional tests
+- Feature suggestions (open an issue first to discuss)
+- Real-world use cases and feedback
 
 ### Development Setup
 
