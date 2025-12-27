@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-pytorchers is a PyTorch library for tabular datasets with sklearn compatibility. Currently implements regression models; classification support is planned next.
+pytorchers is a PyTorch library for tabular datasets with sklearn compatibility. Implements both regression and classification models with full sklearn Pipeline, GridSearchCV, and cross-validation support.
 
-**Critical Constraint:** The `fit()` method in reg.py (lines 93, 95) expects `y` to have a `.values` attribute (pandas Series/DataFrame). This will fail with plain numpy arrays and needs fixing before widespread use.
+**Critical Constraint:** The `fit()` method in reg.py (lines 114, 116) expects `y` to have a `.values` attribute (pandas Series/DataFrame). This will fail with plain numpy arrays and needs fixing. Classification (clf.py) properly handles both pandas and numpy using `hasattr(y, 'values')` checks.
 
 ## Development Commands
 
@@ -56,23 +56,25 @@ There is currently no test suite. When adding tests, use pytest and ensure sklea
 
 The library uses two key patterns to achieve sklearn compatibility while maintaining PyTorch flexibility:
 
-1. **Wrapper Pattern (reg.py)**
-   - `NNRegressorEstimator` wraps any PyTorch nn.Module
-   - Implements `BaseEstimator` and `RegressorMixin` from sklearn
-   - Handles all numpy ↔ tensor conversions
-   - Manages training loop, validation split, and loss tracking
-   - `NNRegressor` is a convenience subclass that auto-creates `BaseNNRegressor`
+1. **Wrapper Pattern (reg.py and clf.py)**
+   - `NNRegressorEstimator` wraps any PyTorch nn.Module for regression
+   - `NNClassifierEstimator` wraps any PyTorch nn.Module for classification
+   - Both implement sklearn base classes (`BaseEstimator` with `RegressorMixin` or `ClassifierMixin`)
+   - Handle all numpy ↔ tensor conversions
+   - Manage training loop, validation split, and loss tracking
+   - Classification includes label encoding via `LabelEncoder` for non-numeric targets
 
 2. **Mixin Pattern (viz.py)**
    - `ForwardTracker` adds visualization via multiple inheritance
    - Must be combined with nn.Module: `class MyModel(nn.Module, ForwardTracker)`
    - Uses PyTorch forward hooks to capture layer activations
    - Only tracks direct child Linear layers (uses `named_children()`, not `named_modules()`)
+   - Automatically detects classification vs regression based on output shape
 
 ### Critical Implementation Details
 
-#### BaseNNRegressor (base.py)
-Uses `setattr`/`getattr` for dynamic layer creation, NOT ModuleList:
+#### BaseNNRegressor and BaseNNClassifier (reg.py and clf.py)
+Both use `setattr`/`getattr` for dynamic layer creation, NOT ModuleList:
 ```python
 # Layers created as: self.fc0, self.fc1, self.fc2, ...
 setattr(self, f"fc{i}", nn.Linear(...))
@@ -81,8 +83,12 @@ setattr(self, f"fc{i}", nn.Linear(...))
 x = getattr(self, f"fc{i}")(x)
 ```
 
+**Key difference:**
+- `BaseNNRegressor` outputs single value (or `output_size` values)
+- `BaseNNClassifier` outputs `n_classes` logits (no softmax in forward - handled by CrossEntropyLoss)
+
 #### NNRegressorEstimator.fit() (reg.py)
-Loss and optimizer are hardcoded inline (lines 81-84), not in helper methods:
+Loss and optimizer are hardcoded inline (lines 102-105), not in helper methods:
 ```python
 if self.loss == "mse":
     loss = nn.MSELoss()
@@ -91,6 +97,15 @@ if self.optimizer == "adam":
 ```
 
 **TODO:** Only MSE loss and Adam optimizer are implemented despite documentation mentioning "mae", "huber", "sgd", "rmsprop".
+
+#### NNClassifierEstimator.fit() (clf.py)
+- Uses `LabelEncoder` to handle non-numeric class labels (lines 113-115)
+- Stores `self.classes_` attribute (sklearn requirement for classifiers)
+- Implements stratified train/test split to preserve class distribution (line 123)
+- Supports class weighting for imbalanced datasets via `class_weight` parameter:
+  - `class_weight="balanced"`: Auto-compute inverse frequency weights
+  - `class_weight={0: 1.5, 1: 1.0}`: Custom class weights
+- Tracks both loss and accuracy during training (unlike regression which only tracks loss)
 
 #### ForwardTracker (viz.py)
 - Uses `named_children()` so only tracks direct child layers, not nested modules
@@ -111,63 +126,70 @@ For GridSearchCV and Pipeline to work:
 
 ## Key Gaps and Known Issues
 
-1. **Data type assumption (HIGH PRIORITY):** reg.py lines 93, 95 call `y.values` - fails on numpy arrays
-   - Fix: Add `y.values if hasattr(y, 'values') else y`
-   - This affects both `NNRegressorEstimator.fit()` and indirectly `NNRegressor.fit()`
+1. **Data type assumption in reg.py (HIGH PRIORITY):** reg.py lines 114, 116 call `y.values` - fails on numpy arrays
+   - Fix: Add `y.values if hasattr(y, 'values') else y` (like clf.py does correctly)
+   - This affects `NNRegressorEstimator.fit()`
+   - clf.py already handles this correctly (lines 114, 127-130, 220, 245)
 
-2. **Loss/optimizer limited:** Only MSE and Adam work despite accepting other strings
-   - Extract inline code (lines 81-84) to helper methods
+2. **Loss/optimizer limited in regression:** Only MSE and Adam work despite accepting other strings
+   - Extract inline code (lines 102-105) to helper methods
    - Add implementations for "mae", "huber" losses and "sgd", "rmsprop" optimizers
+   - Classification only supports CrossEntropyLoss and Adam (but is documented correctly)
 
-3. **No fitted check:** `predict()` doesn't verify model is fitted
+3. **No fitted check:** `predict()` doesn't verify model is fitted in either reg.py or clf.py
    - Add `from sklearn.utils.validation import check_is_fitted`
-   - Call `check_is_fitted(self, ['model'])` at start of `predict()`
+   - Call `check_is_fitted(self, ['model'])` at start of `predict()` and `predict_proba()`
 
-4. **Empty `__init__.py`:** No public API exports
-   - Should export: BaseNNRegressor, NNRegressor, NNRegressorEstimator, ForwardTracker
-
-5. **ForwardTracker limitation:** Only works with direct child Linear layers
+4. **ForwardTracker limitation:** Only works with direct child Linear layers
    - Consider using `named_modules()` for nested architectures
    - Won't work with models using nn.Sequential or deeply nested modules
+   - Works well for BaseNNRegressor/BaseNNClassifier since they use direct children with setattr
 
 ## Project Structure
 
 ```
 pytorchers/
 ├── src/pytorchers/
-│   ├── __init__.py          # Currently empty - should export public API
-│   ├── base.py              # BaseNNRegressor - uses setattr/getattr for layers
-│   ├── reg.py               # NNRegressorEstimator + NNRegressor
+│   ├── __init__.py          # Public API exports (BaseNNRegressor, BaseNNClassifier, etc.)
+│   ├── reg.py               # BaseNNRegressor + NNRegressorEstimator
+│   ├── clf.py               # BaseNNClassifier + NNClassifierEstimator
 │   ├── viz.py               # ForwardTracker mixin for visualization
 │   └── main.py              # CLI entry point
 ├── notebooks/
-│   └── boston.ipynb         # Canonical usage example
+│   ├── reg_demo.ipynb       # Regression examples
+│   └── clf_demo.ipynb       # Classification examples
 ├── pyproject.toml           # uv-based build config
 ├── .pre-commit-config.yaml  # Ruff, nbqa, nbstripout, detect-secrets
+├── README.md                # Comprehensive user documentation
 └── CLAUDE.md                # This file
 ```
 
-## Adding Classification Support
+## Classification Implementation Notes
 
-When implementing classification (next priority):
+Classification support has been implemented in `clf.py`. Key features:
 
-1. Create `BaseNNClassifier` in base.py with softmax/sigmoid output
-2. Create `clf.py` with `NNClassifierEstimator(BaseEstimator, ClassifierMixin)`
-3. Key differences from regression:
-   - Use `nn.CrossEntropyLoss()` or `nn.BCEWithLogitsLoss()`
-   - `predict()` returns class labels (argmax)
-   - Add `predict_proba()` method for probabilities
-   - Store `classes_` attribute in `fit()` (sklearn requirement)
-   - Handle label encoding for string/categorical targets
-4. Test with `check_estimator(NNClassifier(...))`
-5. Follow same patterns: wrapper pattern for sklearn compat, dynamic layer creation with setattr/getattr
+1. **BaseNNClassifier** - Similar to BaseNNRegressor but outputs `n_classes` logits
+2. **NNClassifierEstimator** - Wraps PyTorch models with sklearn `ClassifierMixin`
+3. **Key differences from regression:**
+   - Uses `nn.CrossEntropyLoss()` (expects raw logits, no softmax in forward)
+   - `predict()` returns class labels (uses argmax + inverse_transform)
+   - `predict_proba()` returns class probabilities (applies softmax to logits)
+   - Stores `classes_` attribute in `fit()` (sklearn requirement)
+   - Uses `LabelEncoder` to handle string/categorical targets
+   - Implements stratified train/test split
+   - Supports class weighting for imbalanced data
+   - Tracks both loss and accuracy during training
 
-## Example Notebook
+## Example Notebooks
 
-See `notebooks/boston.ipynb` for comprehensive usage examples on the Boston Housing dataset, demonstrating:
-- sklearn Pipeline integration
-- Cross-validation and GridSearchCV
-- Visualization with ForwardTracker
-- Train/validation comparison
+- `notebooks/reg_demo.ipynb` - Regression examples demonstrating:
+  - sklearn Pipeline integration
+  - Cross-validation and GridSearchCV
+  - Visualization with ForwardTracker
+  - Train/validation comparison
 
-This notebook is the canonical reference for how the library should be used.
+- `notebooks/clf_demo.ipynb` - Classification examples demonstrating:
+  - Binary and multi-class classification
+  - Label encoding for categorical targets
+  - Class weighting for imbalanced datasets
+  - Probability predictions with `predict_proba()`
