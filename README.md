@@ -99,8 +99,7 @@ predictions = model.predict(X_test)
 For more control, wrap your custom PyTorch models:
 
 ```python
-from pytorchers.base import BaseNNRegressor
-from pytorchers.reg import NNRegressorEstimator
+from pytorchers.reg import NNRegressorEstimator, BaseNNRegressor
 
 # Create custom PyTorch model
 custom_model = BaseNNRegressor(
@@ -139,7 +138,7 @@ predictions = estimator.predict(X_test)
 Customizable feedforward neural network for regression:
 
 ```python
-from pytorchers.base import BaseNNRegressor
+from pytorchers.reg import BaseNNRegressor
 
 model = BaseNNRegressor(
     input_size=13,
