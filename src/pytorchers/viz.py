@@ -46,8 +46,17 @@ class ForwardTracker:
                 yticklabels=[],
             )
 
-        axs[-1].scatter(y.detach().numpy(), preds.detach().numpy(), alpha=0.5, color="yellowgreen")
-        axs[-1].plot(y.detach().numpy(), y.detach().numpy(), "r--")
+        # Handle both regression and classification
+        y_numpy = y.detach().numpy()
+        if preds.dim() > 1 and preds.shape[1] > 1:
+            # Classification: take argmax to get predicted classes
+            preds_numpy = preds.argmax(dim=1).detach().numpy()
+        else:
+            # Regression: use predictions directly
+            preds_numpy = preds.detach().numpy()
+
+        axs[-1].scatter(y_numpy, preds_numpy, alpha=0.5, color="yellowgreen")
+        axs[-1].plot(y_numpy, y_numpy, "r--")
         axs[-1].set(title="truth vs preds", xlabel="truth", ylabel="preds")
 
         fig.suptitle(fig_title)
