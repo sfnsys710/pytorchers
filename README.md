@@ -371,9 +371,11 @@ This package was assembled from various notebook experiments and has several rou
 - **Better error messages** - More helpful feedback when things go wrong
 
 **Feature Enhancements:**
+- **Gradient visual inspection** - Real-time gradient visualization during training to ensure healthy weight updates, detect vanishing/exploding gradients, and verify backpropagation is working as expected. Extends visual inspection capabilities from activations to gradients.
+- **Training loss and metrics history visualization** - Automatic plotting of training/validation loss curves, accuracy trends, and other metrics over epochs. Helps identify overfitting, underfitting, and training convergence issues at a glance.
 - **Additional loss functions** - MAE, Huber loss implementations for regression
 - **Additional optimizers** - SGD, RMSprop, AdamW support
-- **Enhanced visualization** - More inspection tools and plotting options
+- **Enhanced activation visualization** - More inspection tools and plotting options for layer activations
 - **Early stopping** - Built-in patience-based early stopping
 - **Learning rate scheduling** - Support for LR decay and warmup
 - **Type hints** - Full type annotation coverage
